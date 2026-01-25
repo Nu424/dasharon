@@ -542,7 +542,7 @@ console.log(embedding);
 - リクエスト例:
 
 ```typescript
-const response = await fetch('https://openrouter.ai/api/v1/speech-to-text', {
+const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
         Authorization: `Bearer <OPENROUTER_API_KEY>`,
