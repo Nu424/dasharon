@@ -59,6 +59,14 @@ export class AudioManager {
 
     onEnded: (() => void) | undefined;
 
+    /**
+     * PCMキャッシュ（VAD由来など、fromPCMData() で生成した場合に保持する）
+     * - これがある場合、Blobをデコードせずに高速に結合できる
+     * - 現状は mono を想定（createWavBlobFromPCM が mono 固定）
+     */
+    pcmData: Float32Array | undefined;
+    pcmSampleRate: number | undefined;
+
     // ----------
     // ---再生コントロール
     // ----------
@@ -184,6 +192,10 @@ export class AudioManager {
      * @param sampleRate サンプリングレート（デフォルト: 16000Hz）
      */
     async fromPCMData(pcmData: Float32Array, sampleRate: number = 16000): Promise<void> {
+        // PCMキャッシュ（結合用）
+        this.pcmData = pcmData;
+        this.pcmSampleRate = sampleRate;
+
         // WAVヘッダーを追加してBlobに変換
         const wavBlob = this.createWavBlobFromPCM(pcmData, sampleRate);
         this.audioBlob = wavBlob;
@@ -270,6 +282,9 @@ export class AudioManager {
     async fromBlob(blob: Blob): Promise<void> {
         this.audioBlob = blob;
         this.audioElement = new Audio(URL.createObjectURL(blob));
+        // blob由来はPCMが不明なのでキャッシュは破棄
+        this.pcmData = undefined;
+        this.pcmSampleRate = undefined;
         this.stop();
     }
 
@@ -282,6 +297,8 @@ export class AudioManager {
         const blob = new Blob([arrayBuffer], { type: mimeType });
         this.audioBlob = blob;
         this.audioElement = new Audio(URL.createObjectURL(blob));
+        this.pcmData = undefined;
+        this.pcmSampleRate = undefined;
         this.stop();
     }
 
@@ -300,6 +317,8 @@ export class AudioManager {
 
         // ---AudioElementの作成
         this.audioElement = new Audio(URL.createObjectURL(blob));
+        this.pcmData = undefined;
+        this.pcmSampleRate = undefined;
         this.stop();
     }
 
@@ -311,6 +330,8 @@ export class AudioManager {
         const blob = file;
         this.audioBlob = blob;
         this.audioElement = new Audio(URL.createObjectURL(blob));
+        this.pcmData = undefined;
+        this.pcmSampleRate = undefined;
         this.stop();
     }
 
@@ -392,5 +413,46 @@ export class AudioManager {
         a.download = filename;
         a.click();
         URL.revokeObjectURL(url);
+    }
+
+    /**
+     * 複数の AudioManager を結合する（VADバッファのフラッシュ用）
+     * @notes
+     * - 全てが fromPCMData() 由来（pcmData がある）なら、PCM連結→WAV生成で安全に結合できる
+     * - それ以外（blob由来）は現状サポート外（webm等は単純結合できないため）
+     */
+    static async concatAudioManagers(audioManagers: AudioManager[]): Promise<AudioManager> {
+        // ---結合可能性の検討
+        if (audioManagers.length === 0) {
+            throw new Error("No audioManagers to concat");
+        }
+
+        const sampleRate = audioManagers[0].pcmSampleRate;
+        if (!sampleRate) {
+            throw new Error("pcmSampleRate is undefined (concat requires PCM-backed AudioManager)");
+        }
+
+        for (const am of audioManagers) {
+            if (!am.pcmData || !am.pcmSampleRate) {
+                throw new Error("concat requires PCM-backed AudioManager (created via fromPCMData)");
+            }
+            if (am.pcmSampleRate !== sampleRate) {
+                throw new Error("pcmSampleRate mismatch");
+            }
+        }
+
+        // ---結合
+        const totalLength = audioManagers.reduce((sum, am) => sum + (am.pcmData?.length ?? 0), 0);
+        const merged = new Float32Array(totalLength);
+        let offset = 0;
+        for (const am of audioManagers) {
+            merged.set(am.pcmData!, offset);
+            offset += am.pcmData!.length;
+        }
+
+        // ---結合後のAudioManagerを作成
+        const mergedAudio = new AudioManager();
+        await mergedAudio.fromPCMData(merged, sampleRate);
+        return mergedAudio;
     }
 }
