@@ -432,9 +432,9 @@ function App() {
   }, [actions, transcriptText]);
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-24 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+    <div className="flex h-svh flex-col bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
       {/* メインメモ領域 */}
-      <main className="mx-auto flex h-[calc(100vh-6rem)] max-w-4xl flex-col gap-4 p-4">
+      <main className="mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col gap-4 p-4">
         <MemoPane
           markdown={memo.markdown}
           isEditing={runtime.ui.editOpen}

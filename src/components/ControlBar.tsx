@@ -53,7 +53,7 @@ export function ControlBar({
     .join(" · ");
 
   return (
-    <section className="fixed bottom-0 left-0 right-0 border-t border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950">
+    <section className="shrink-0 select-none touch-none border-t border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950">
       <div className="mx-auto flex max-w-4xl flex-col gap-2">
         <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">
           <span>{mode}</span>
@@ -65,7 +65,7 @@ export function ControlBar({
           <div className="flex gap-2">
             <button
               type="button"
-              className="h-14 flex-1 rounded-full bg-slate-900 text-sm font-semibold text-white disabled:opacity-40 dark:bg-slate-100 dark:text-slate-900"
+              className="h-14 flex-1 select-none rounded-full bg-slate-900 text-sm font-semibold text-white disabled:opacity-40 dark:bg-slate-100 dark:text-slate-900"
               disabled={isLocked}
               onPointerDown={(event) => {
                 event.preventDefault();
@@ -89,7 +89,7 @@ export function ControlBar({
             {recordingStatus === "grace" ? (
               <button
                 type="button"
-                className="h-14 rounded-full border border-slate-300 px-4 text-sm font-semibold text-slate-700 disabled:opacity-40 dark:border-slate-700 dark:text-slate-100"
+                className="h-14 select-none rounded-full border border-slate-300 px-4 text-sm font-semibold text-slate-700 disabled:opacity-40 dark:border-slate-700 dark:text-slate-100"
                 disabled={isLocked}
                 onClick={onPttGraceCancel}
               >
@@ -102,7 +102,7 @@ export function ControlBar({
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
-              className="h-12 rounded border border-slate-300 text-sm font-semibold disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900/40"
+              className="h-12 select-none rounded border border-slate-300 text-sm font-semibold disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900/40"
               disabled={isLocked}
               onClick={onToggleVadListening}
             >
@@ -110,7 +110,7 @@ export function ControlBar({
             </button>
             <button
               type="button"
-              className="h-12 rounded border border-slate-300 text-sm font-semibold disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900/40"
+              className="h-12 select-none rounded border border-slate-300 text-sm font-semibold disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900/40"
               disabled={isLocked || !isListening}
               onClick={onToggleVadHold}
             >
