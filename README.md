@@ -1,73 +1,99 @@
-# React + TypeScript + Vite
+## だしゃろん 🎙️📝
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+**だらだら喋るだけで、構造化された議論メモ（Markdown）が育つ**フロント完結アプリです。  
+PTT / VAD + ホールド / 猶予カウントで「勝手に終わらない」を重視しています。
 
-Currently, two official plugins are available:
+- **公開URL（GitHub Pages）**: `https://nu424.github.io/dasharon/`
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+---
 
-## React Compiler
+## 使い方（最短）🚀
 
-The React Compiler is currently not compatible with SWC. See [this issue](https://github.com/vitejs/vite-plugin-react/issues/428) for tracking the progress.
+1. **「設定」**を開く
+2. **OpenRouter APIキー**を入れる（※ローカル保存）
+3. **モデル**を選ぶ（STT / LLM）
+4. 下のバーで音声入力 → 自動で **STT → LLM → メモ更新**
 
-## Expanding the ESLint configuration
+---
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## 音声入力のコツ 🎧
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### PTT（デフォ）🖐️
+- **押す**: 録音開始
+- **離す**: 猶予カウント開始（デフォ 1s、設定で変更可）
+- **猶予が0**: 送信確定（末尾の猶予分はトリムしてSTTへ）
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### VAD（自動検出）🫧
+- **マイクON**: 発話を自動で区切って溜める
+- **ホールドON**: “送らない”ので考える間も安心（バッファに溜まる）
+- **ホールドOFF**: 解除した瞬間に **まとめてフラッシュ→STT**（猶予なし）
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+---
+
+## できること ✨
+
+- **議論メモ（Markdown）**の自動更新・表示（GFM対応）
+- **コピー**（メモ / 文字起こしログ）
+- **編集**（処理中は安全のためロック）
+- 設定：APIキー / STT・LLMモデル / 言語 / 入力モード / 猶予 / スタイルプリセット
+
+---
+
+## 注意（大事）🔐
+
+- **APIキーは localStorage に保存**されます（共有PCでは注意！）
+- **Chrome 推奨**（マイク権限が必要です）
+- STT/LLM は OpenRouter を使うため **利用料金が発生**する場合があります
+
+---
+
+## 開発者向け（ざっくり理解）🧩
+
+### 処理の流れ（1本の音声セグメント）
+`Audio(PTT/VAD)` → `STT(OpenRouter)` → `transcriptsに追加` → `pendingに追記` → `LLM(OpenRouter)` → `memo(markdown)更新`
+
+- **逐次処理**: STT/LLMはキューで順番に流して、詰まりやAPI過負荷を避けます
+- **LLM失敗時**: pending を保持して「再解析」で復帰できる設計です
+
+### まず読むべきコード 📌
+- **UI/状態/録音制御の中心**: `src/App.tsx`
+- **STT→LLMの逐次パイプライン**: `src/services/pipeline/processingLoop.ts`
+- **PTT録音（timeslice/末尾トリム対応）**: `src/modules/DataRecorder/AudioRecorder.ts`
+- **VAD録音（onSpeechEndでPCM→AudioManager）**: `src/modules/DataRecorder/VadAudioRecorder.ts`
+- **VADバッファ結合→flush**: `src/services/vad/vadBuffer.ts`
+- **OpenRouter STT/LLM**: `src/services/openRouter/stt.ts` / `src/services/openRouter/llm.ts`
+- **Zustand（settings/memo/transcripts永続化）**: `src/store/useAppStore.ts`
+- **UI部品**: `src/components/*`（`ControlBar`, `MemoPane`, `SettingsModal`, `TranscriptLogModal`）
+- **猶予カウント**: `src/hooks/useGraceRelease.ts`
+- **メモのスタイル指示**: `src/constants/memoStylePresets.ts`
+
+### ローカル開発 🛠️
+
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+- **build**: `npm run build`
+- **preview**: `npm run preview`
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+---
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## GitHub Pages 公開 🌐
+
+このリポジトリは GitHub Actions で Pages にデプロイします。
+
+- **Workflow**: `.github/workflows/deploy.yml`
+- **Vite base**: `vite.config.ts`（CIでは `/<repo>/` を自動設定）
+
+手順：
+1. GitHub の **Settings → Pages** で **Build and deployment: GitHub Actions** を選ぶ
+2. `main` に push → Actions が走って公開
+
+---
+
+## ドキュメント 📚
+
+- 仕様の元ネタ: `documents/concept.txt`
+- 設計メモ: `documents/plan.md`
+- OpenRouterの扱い: `documents/how_to_use-LLMAPI.md`
