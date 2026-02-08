@@ -118,6 +118,33 @@ export class AudioRecorder {
     }
 
     /**
+     * 録音を破棄して停止する
+     */
+    public async cancelRecord(): Promise<void> {
+        if (!this.recorder) {
+            this.cleanup();
+            return;
+        }
+
+        return new Promise((resolve) => {
+            this.recorder!.onstop = () => {
+                this.cleanup();
+                resolve();
+            };
+            this.recorder!.ondataavailable = () => {
+                // 収録データを破棄する
+            };
+            this.recordedChunks = [];
+            if (this.recorder!.state !== "inactive") {
+                this.recorder!.stop();
+            } else {
+                this.cleanup();
+                resolve();
+            }
+        });
+    }
+
+    /**
      * リソースを解放する
      */
     private cleanup() {
