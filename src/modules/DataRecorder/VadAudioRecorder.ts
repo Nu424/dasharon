@@ -13,7 +13,7 @@ export class VadAudioRecorder {
         this.onVoiceDetected = onVoiceDetected;
     }
 
-    public async init(redemptionFrames: number = 4) {
+    public async init() {
         this.vad = await MicVAD.new({
             onSpeechEnd: ((audio: Float32Array) => {
                 // Float32ArrayをAudioManagerに変換
@@ -24,7 +24,6 @@ export class VadAudioRecorder {
                     this.onVoiceDetected(audioManager);
                 });
             }).bind(this), // bindして、thisをVadAudioRecorderにする
-            // redemptionFrames: redemptionFrames,
             baseAssetPath: VAD_ASSET_BASE,
             onnxWASMBasePath: ORT_ASSET_BASE,
             ortConfig: (ort) => {
