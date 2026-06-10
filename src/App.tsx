@@ -62,7 +62,7 @@ function App() {
   }, [settings.theme]);
 
   // ----------
-  // ---連続録音 (PTT / Toggle)
+  // ---PTT / Toggle
   // ----------
   /**
    * AudioRecorderを遅延初期化する。
@@ -93,9 +93,11 @@ function App() {
           continuousModeRef.current = null;
           return;
         }
+        // ---recorderを停止し、audioManagerを取得する。
         const audioManager = await recorder.stopRecord(trimMs);
-        if (mode === "PTT" && sessionToken !== pttSessionRef.current) return;
+        if (mode === "PTT" && sessionToken !== pttSessionRef.current) return; // 録音セッションが変わっていたら破棄(猶予中にPTTを複数回押した場合など)
         if (audioManager) {
+          // ---audioManagerをSTTキューへ渡す。
           pipelineRef.current?.enqueue({ audioManager, mode });
         }
       } catch (error) {
@@ -126,7 +128,7 @@ function App() {
   });
 
   /**
-   * 連続録音を開始する。
+   * 連続録音を開始する（PTT / Toggle）。
    */
   const startContinuousRecording = useCallback(
     async (mode: ContinuousInputMode) => {
@@ -134,7 +136,7 @@ function App() {
         const recorder = await ensureAudioRecorder();
         await recorder.startRecord(250);
         if (mode === "PTT") {
-          pttSessionRef.current += 1;
+          pttSessionRef.current += 1; // セッションidをインクリメントする。
         }
         continuousModeRef.current = mode;
         actions.setRecording({ status: "recording", graceRemainingMs: 0 });
@@ -149,6 +151,7 @@ function App() {
 
   /**
    * 即時に連続録音を終了する。
+   * @notes 即時終了は、録音中にメモ編集をしたり、入力方法を変えたりしたときに実行される。キャンセルではない
    */
   const stopContinuousRecordingImmediately = useCallback(async () => {
     grace.cancel();
@@ -177,7 +180,7 @@ function App() {
   const handlePttRelease = useCallback(() => {
     if (runtime.recording.status !== "recording" || continuousModeRef.current !== "PTT") return;
     actions.setRecording({ status: "grace" });
-    grace.release();
+    grace.release(); // ここではrecorder.stopRecord()は呼ばない。最終的にはonGraceEnd()のほうでstopRecord()が呼ばれる
   }, [actions, grace, runtime.recording.status]);
 
   /**
@@ -232,9 +235,11 @@ function App() {
   const ensureVadRecorder = useCallback(async () => {
     if (vadRecorderRef.current) return;
     const recorder = new VadAudioRecorder((audioManager) => {
+      // ---VADが完了したときのコールバック
       vadBufferRef.current?.addSegment(audioManager);
       const holdActive = useAppStore.getState().runtime.recording.vadHoldActive;
       if (!holdActive) {
+        // ---ホールドされてない場合は、バッファをflushし、STTキューへ送信する。
         void vadBufferRef.current?.flush();
       }
     });
@@ -299,6 +304,7 @@ function App() {
   // ---初期化
   // ----------
   useEffect(() => {
+    // パイプラインとVADバッファを初期化する。
     pipelineRef.current = new ProcessingPipeline({
       getSettings: () => useAppStore.getState().settings,
       getMemoMarkdown: () => useAppStore.getState().memo.markdown,
@@ -312,7 +318,7 @@ function App() {
       clearRuntimeError: () => useAppStore.getState().actions.clearRuntimeError(),
     });
     vadBufferRef.current = new VadBuffer({
-      onFlush: (audioManager) => pipelineRef.current?.enqueue({ audioManager, mode: "VAD" }),
+      onFlush: (audioManager) => pipelineRef.current?.enqueue({ audioManager, mode: "VAD" }), // VADバッファがflushされたときに、STTキューへ送信する。
       onCountChange: (count) => useAppStore.getState().actions.setRecording({ vadBufferCount: count }),
     });
     return () => {
@@ -322,6 +328,7 @@ function App() {
   }, []);
 
   useEffect(() => {
+    // 猶予カウントの残り時間をUIに反映。
     if (runtime.recording.status === "grace") {
       actions.setRecording({ graceRemainingMs: grace.remainingMs });
     }
@@ -331,6 +338,9 @@ function App() {
   // ---キー入力
   // ----------
   useEffect(() => {
+    /**
+     * フォーム要素への入力時はグローバルショートカットを無効にする。
+     */
     const isEditableTarget = (target: EventTarget | null) => {
       if (!(target instanceof HTMLElement)) return false;
       const tagName = target.tagName;
@@ -343,9 +353,13 @@ function App() {
       );
     };
 
+    /**
+     * スペースキー押下でPTTを開始する、またはトグル録音を切り替える。
+     */
     const handleKeyDown = (event: KeyboardEvent) => {
       if (settings.inputMode === "PTT") {
         if (event.code === "Escape") {
+          // 猶予中の場合、Escが押されたら、PTT録音をキャンセルする。
           if (runtime.recording.status !== "grace") return;
           event.preventDefault();
           void cancelPttGrace();
@@ -370,12 +384,15 @@ function App() {
       }
     };
 
+    /**
+     * スペースキー解除でPTTを終了する。
+     */
     const handleKeyUp = (event: KeyboardEvent) => {
       if (settings.inputMode !== "PTT") return;
       if (event.code !== "Space") return;
       if (isEditableTarget(event.target)) return;
       event.preventDefault();
-      handlePttRelease();
+      handlePttRelease(); // handlePttRelease()を呼び、ボタンと同じようにPTT録音を終了する。
     };
 
     window.addEventListener("keydown", handleKeyDown);
@@ -398,6 +415,7 @@ function App() {
   // ---メモ編集・入力モード切り替えで、録音を停止する
   // ----------
   useEffect(() => {
+    // 編集中は録音を停止する。
     if (runtime.ui.editOpen) {
       if (runtime.recording.status === "listening") {
         void stopVadListening();
@@ -409,6 +427,7 @@ function App() {
   }, [runtime.ui.editOpen, runtime.recording.status, stopContinuousRecordingImmediately, stopVadListening]);
 
   useEffect(() => {
+    // 入力モードの切替に合わせて不要な録音を停止する。
     const { status } = runtime.recording;
     if (settings.inputMode === "VAD") {
       if (status === "recording" || status === "grace") {
@@ -426,12 +445,14 @@ function App() {
     }
   }, [settings.inputMode, runtime.recording.status, stopContinuousRecordingImmediately, stopVadListening]);
 
+  // UIのロック判定。
   const isEditLocked =
     runtime.recording.status !== "idle" || runtime.processing.sttRunning || runtime.processing.llmRunning;
   const isInputLocked = runtime.ui.editOpen;
   const canRetryLLM =
     runtime.ui.error?.stage === "LLM" && runtime.processing.pendingTranscriptText.trim().length > 0;
 
+  // ログ表示用にテキストを整形。
   const transcriptText = useMemo(() => {
     return transcripts.entries
       .slice()
@@ -440,6 +461,12 @@ function App() {
       .join("\n");
   }, [transcripts.entries]);
 
+  // ----------
+  // ---クリップボード操作
+  // ----------
+  /**
+   * メモ本文をクリップボードにコピーする。
+   */
   const handleCopyMemo = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(memo.markdown);
@@ -449,6 +476,9 @@ function App() {
     }
   }, [actions, memo.markdown]);
 
+  /**
+   * 文字起こしログをクリップボードにコピーする。
+   */
   const handleCopyTranscripts = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(transcriptText);
@@ -460,6 +490,7 @@ function App() {
 
   return (
     <div className="flex h-svh flex-col bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+      {/* メインメモ領域 */}
       <main className="mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col gap-4 p-4">
         <MemoPane
           markdown={memo.markdown}
@@ -476,6 +507,7 @@ function App() {
         />
       </main>
 
+      {/* 収録コントロール */}
       <ControlBar
         mode={settings.inputMode}
         recordingStatus={runtime.recording.status}
@@ -493,6 +525,7 @@ function App() {
         onToggleVadHold={toggleVadHold}
       />
 
+      {/* 設定モーダル */}
       <SettingsModal
         open={runtime.ui.settingsOpen}
         settings={settings}
@@ -503,6 +536,7 @@ function App() {
         onClearTranscripts={actions.clearTranscripts}
       />
 
+      {/* 文字起こしログモーダル */}
       <TranscriptLogModal
         open={runtime.ui.transcriptLogOpen}
         entries={transcripts.entries}
