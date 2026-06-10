@@ -1,7 +1,7 @@
 ## だしゃろん 🎙️📝
 
 **だらだら喋るだけで、構造化された議論メモ（Markdown）が育つ**フロント完結アプリです。  
-PTT / VAD + ホールド / 猶予カウントで「勝手に終わらない」を重視しています。
+PTT / Toggle / VAD + ホールド / 猶予カウントで「勝手に終わらない」を重視しています。
 
 - **公開URL（GitHub Pages）**: `https://nu424.github.io/dasharon/`
 
@@ -22,6 +22,11 @@ PTT / VAD + ホールド / 猶予カウントで「勝手に終わらない」�
 - **押す**: 録音開始
 - **離す**: 猶予カウント開始（デフォ 1s、設定で変更可）
 - **猶予が0**: 送信確定（末尾の猶予分はトリムしてSTTへ）
+- **Space**: 押下/離上でも同様に操作可能
+
+### Toggle（トグル録音）🔴
+- **Start Recording**: 録音開始（Space でも切替可）
+- **Stop Recording**: 録音停止 → STT へ送信（猶予なし）
 
 ### VAD（自動検出）🫧
 - **マイクON**: 発話を自動で区切って溜める
@@ -35,7 +40,7 @@ PTT / VAD + ホールド / 猶予カウントで「勝手に終わらない」�
 - **議論メモ（Markdown）** の自動更新・表示（GFM対応）
 - **コピー**（メモ / 文字起こしログ）
 - **編集**（処理中は安全のためロック）
-- 設定：APIキー / STT・LLMモデル / 言語 / 入力モード / 猶予 / スタイルプリセット
+- 設定：APIキー / STT・LLMモデル / 要約言語 / 入力モード / 猶予 / スタイルプリセット
 
 ---
 
@@ -50,7 +55,7 @@ PTT / VAD + ホールド / 猶予カウントで「勝手に終わらない」�
 ## 開発者向け（ざっくり理解）🧩
 
 ### 処理の流れ（1本の音声セグメント）
-`Audio(PTT/VAD)` → `STT(OpenRouter)` → `transcriptsに追加` → `pendingに追記` → `LLM(OpenRouter)` → `memo(markdown)更新`
+`Audio(PTT/Toggle/VAD)` → `STT(OpenRouter transcriptions API)` → `transcriptsに追加` → `pendingに追記` → `LLM(OpenRouter)` → `memo(markdown)更新`
 
 - **逐次処理**: STT/LLMはキューで順番に流して、詰まりやAPI過負荷を避けます
 - **LLM失敗時**: pending を保持して「再解析」で復帰できる設計です

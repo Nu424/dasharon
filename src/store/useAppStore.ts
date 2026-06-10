@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 /** 入力モード。 */
-export type InputMode = "PTT" | "VAD";
+export type InputMode = "PTT" | "VAD" | "TOGGLE";
 /** 録音/待機の状態。 */
 export type RecordingStatus = "idle" | "recording" | "grace" | "finalizing" | "listening";
 /** テーマモード。 */
@@ -16,7 +16,6 @@ export type Settings = {
   inputMode: InputMode;
   theme: ThemeMode;
   graceMs: number;
-  sttLanguage: string;
   summaryLanguage: string;
   memoStylePresetId: string;
   memoStyleCustomInstruction: string;
@@ -98,12 +97,11 @@ const MAX_TRANSCRIPT_ENTRIES = 300;
 // 初期設定値。
 const DEFAULT_SETTINGS: Settings = {
   openRouterApiKey: "",
-  sttModel: "google/gemini-2.5-flash",
+  sttModel: "openai/whisper-large-v3-turbo",
   llmModel: "google/gemini-2.5-flash",
   inputMode: "PTT",
   theme: "system",
   graceMs: 1000,
-  sttLanguage: "ja",
   summaryLanguage: "ja",
   memoStylePresetId: "structured_minutes",
   memoStyleCustomInstruction: "",
