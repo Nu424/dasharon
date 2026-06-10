@@ -1,35 +1,22 @@
 import { AudioManager } from "../../modules/DataManager/AudioManager";
 import { splitBase64 } from "../../modules/DataManager/util";
-import { openRouterFetchJson } from "./openRouterFetch";
+import {
+  OPENROUTER_AUDIO_TRANSCRIPTIONS_URL,
+  openRouterFetchJson,
+} from "./openRouterFetch";
 
 /** 文字起こしに必要な入力。 */
 type TranscribeAudioParams = {
   audioManager: AudioManager;
   apiKey: string;
   model: string;
-  language?: string;
-  instructionText?: string;
   timeoutMs: number;
   retryCount: number;
 };
 
-/** OpenRouterの音声入力レスポンス形。 */
-type OpenRouterSpeechResponse = {
-  choices: Array<{
-    message: {
-      role: string;
-      content: string;
-    };
-  }>;
-};
-
-/** STTの指示文を構築する。 */
-const buildInstruction = (language?: string, instructionText?: string) => {
-  const pieces = [
-    instructionText ?? "Transcribe with punctuation. Do not add line breaks. Ensure that fillers, spaces, and other elements are properly formatted.",
-    language ? `Language: ${language}` : "",
-  ].filter(Boolean);
-  return pieces.join("\n");
+/** OpenRouter STT APIのレスポンス形。 */
+type OpenRouterTranscriptionResponse = {
+  text: string;
 };
 
 /**
@@ -86,46 +73,32 @@ const toWavAudioManager = async (audioManager: AudioManager): Promise<AudioManag
 };
 
 /**
- * OpenRouterに音声を送信して文字起こし結果を取得する。
+ * OpenRouter STT APIに音声を送信して文字起こし結果を取得する。
  */
 export async function transcribeAudio({
   audioManager,
   apiKey,
   model,
-  language,
-  instructionText,
   timeoutMs,
   retryCount,
 }: TranscribeAudioParams): Promise<string> {
-  // STTの受理形式に合わせてWAVに変換。
   const wavManager = await toWavAudioManager(audioManager);
   const dataUrl = await wavManager.toBase64();
   const { base64Data } = splitBase64(dataUrl);
 
-  const response = await openRouterFetchJson<OpenRouterSpeechResponse>({
+  const response = await openRouterFetchJson<OpenRouterTranscriptionResponse>({
     apiKey,
+    url: OPENROUTER_AUDIO_TRANSCRIPTIONS_URL,
     body: JSON.stringify({
       model,
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: buildInstruction(language, instructionText) },
-            {
-              type: "input_audio",
-              input_audio: {
-                data: base64Data,
-                format: "wav",
-              },
-            },
-          ],
-        },
-      ],
+      input_audio: {
+        data: base64Data,
+        format: "wav",
+      },
     }),
     timeoutMs,
     retryCount,
   });
 
-  const content = response.choices?.[0]?.message?.content ?? "";
-  return content.trim();
+  return response.text?.trim() ?? "";
 }

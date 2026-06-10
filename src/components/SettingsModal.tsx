@@ -106,22 +106,25 @@ export function SettingsModal({
                   }
                 >
                   <option value="PTT">PTT</option>
+                  <option value="TOGGLE">Toggle</option>
                   <option value="VAD">VAD</option>
                 </select>
               </label>
-              <label className="block">
-                <span className="text-xs text-slate-600 dark:text-slate-400">Grace (seconds)</span>
-                <input
-                  className="w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-                  type="number"
-                  min={0}
-                  step={0.1}
-                  value={graceSeconds}
-                  onChange={(event) =>
-                    onChangeSettings({ graceMs: Math.max(0, parseNumber(event.target.value)) * 1000 })
-                  }
-                />
-              </label>
+              {settings.inputMode === "PTT" ? (
+                <label className="block">
+                  <span className="text-xs text-slate-600 dark:text-slate-400">Grace (seconds)</span>
+                  <input
+                    className="w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                    type="number"
+                    min={0}
+                    step={0.1}
+                    value={graceSeconds}
+                    onChange={(event) =>
+                      onChangeSettings({ graceMs: Math.max(0, parseNumber(event.target.value)) * 1000 })
+                    }
+                  />
+                </label>
+              ) : null}
             </div>
           </section>
 
@@ -129,20 +132,6 @@ export function SettingsModal({
           <section className="grid gap-3 md:grid-cols-2">
             <div className="space-y-2">
               <h3 className="font-semibold">Language</h3>
-              <label className="block">
-                <span className="text-xs text-slate-600 dark:text-slate-400">STT Language</span>
-                <input
-                  className="w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-                  list="stt-language-options"
-                  value={settings.sttLanguage}
-                  onChange={(event) => onChangeSettings({ sttLanguage: event.target.value })}
-                />
-                <datalist id="stt-language-options">
-                  <option value="ja" />
-                  <option value="en" />
-                  <option value="auto" />
-                </datalist>
-              </label>
               <label className="block">
                 <span className="text-xs text-slate-600 dark:text-slate-400">Summary Language</span>
                 <input

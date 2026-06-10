@@ -1,6 +1,7 @@
 /** OpenRouter API呼び出しに必要なオプション。 */
 type OpenRouterFetchOptions = {
   apiKey: string;
+  url?: string;
   method?: string;
   headers?: HeadersInit;
   body?: string;
@@ -26,7 +27,8 @@ export class OpenRouterError extends Error {
   }
 }
 
-const COMPLETIONS_URL = "https://openrouter.ai/api/v1/chat/completions";
+export const OPENROUTER_CHAT_COMPLETIONS_URL = "https://openrouter.ai/api/v1/chat/completions";
+export const OPENROUTER_AUDIO_TRANSCRIPTIONS_URL = "https://openrouter.ai/api/v1/audio/transcriptions";
 
 /** 指定時間待機するユーティリティ。 */
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -37,13 +39,13 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
  */
 export async function openRouterFetchJson<T>({
   apiKey,
+  url = OPENROUTER_CHAT_COMPLETIONS_URL,
   method = "POST",
   headers,
   body,
   timeoutMs,
   retryCount,
 }: OpenRouterFetchOptions): Promise<T> {
-  const url = COMPLETIONS_URL;
   let lastError: unknown = null;
 
   for (let attempt = 0; attempt <= retryCount; attempt += 1) {

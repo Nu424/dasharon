@@ -12,6 +12,7 @@ type ControlBarProps = {
   onPttPress: () => void;
   onPttRelease: () => void;
   onPttGraceCancel: () => void;
+  onToggleRecording: () => void;
   onToggleVadListening: () => void;
   onToggleVadHold: () => void;
 };
@@ -34,10 +35,12 @@ export function ControlBar({
   onPttPress,
   onPttRelease,
   onPttGraceCancel,
+  onToggleRecording,
   onToggleVadListening,
   onToggleVadHold,
 }: ControlBarProps) {
   const isListening = recordingStatus === "listening";
+  const isRecording = recordingStatus === "recording";
   // ステータス表示用の文言を組み立てる。
   const statusParts = [
     recordingStatus === "recording" && "Recording",
@@ -97,6 +100,20 @@ export function ControlBar({
               </button>
             ) : null}
           </div>
+        ) : mode === "TOGGLE" ? (
+          // トグル録音操作
+          <button
+            type="button"
+            className={`h-14 w-full select-none rounded-full text-sm font-semibold disabled:opacity-40 ${
+              isRecording
+                ? "bg-red-600 text-white dark:bg-red-500"
+                : "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
+            }`}
+            disabled={isLocked || recordingStatus === "finalizing"}
+            onClick={onToggleRecording}
+          >
+            {isRecording ? "Stop Recording" : "Start Recording"}
+          </button>
         ) : (
           // VAD操作
           <div className="grid grid-cols-2 gap-2">

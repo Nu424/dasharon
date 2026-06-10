@@ -532,7 +532,11 @@ console.log(embedding);
     - 512コンテキスト, 384次元(次元指定可能), $0.005 / 入力 1M トークン, $0 / 出力 1M トークン
 
 ## 文字起こし(Speech-to-Text; STT)
-- `input_audio`を指定し、音声ファイルをBase64エンコードして渡すことで、OpenRouterで音声処理ができます。
+- 「マルチモーダルLLMで文字起こしする方法」と「STT用モデルで文字起こしする方法」の2つの方法があります。
+- 基本的に「STT用モデルで文字起こしする方法」のほうが効率的(速い・安い・正確)なので、こちらを推奨します。
+
+### 「マルチモーダルLLMで文字起こしする方法」
+- `input_audio`を指定し、音声ファイルをBase64エンコードして渡すことで、マルチモーダルLLMで音声処理ができます。
 - 音声の入力に対応したモデルを使用する必要があります。以下に例を示します。
   - `google/gemini-3-flash-preview`
   - `google/gemini-2.5-flash`
@@ -580,5 +584,43 @@ const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       },
     }
   ]
+}
+```
+
+### 「STT用モデルで文字起こしする方法」
+- 文字起こし用のエンドポイントに、指定された形式でリクエストすることで、STT用のモデルを用いた文字起こしができます。
+- STT用のモデルを使用する必要があります。以下に例を示します。
+  - `google/chirp-3`: 速い・安い
+  - `openai/whisper-large-v3-turbo`: 速い
+  - `openai/whisper-1`
+- リクエスト例:
+```typescript
+const response = await fetch('https://openrouter.ai/api/v1/audio/transcriptions', {
+  method: 'POST',
+  headers: {
+    Authorization: `Bearer <OPENROUTER_API_KEY>`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    model: 'openai/whisper-large-v3-turbo',
+    input_audio: {
+      data: '<Base64エンコードされた音声データ>',
+      format: '<オーディオフォーマット。mp3, wav, etc.>'
+    }
+  }),
+});
+```
+
+- レスポンスの形式(抜粋):
+```json
+{
+  "text": "<文字起こし結果>",
+  "usage": {
+    "seconds": <音声の秒数>,
+    "total_tokens": <合計トークン数>,
+    "input_tokens": <入力トークン数>,
+    "output_tokens": <出力トークン数>,
+    "cost": <コスト>
+  }
 }
 ```
