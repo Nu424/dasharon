@@ -103,8 +103,6 @@ export class ProcessingPipeline {
         audioManager: segment.audioManager,
         apiKey: settings.openRouterApiKey,
         model: settings.sttModel,
-        language: settings.sttLanguage,
-        instructionText: "Transcribe with punctuation. Do not add line breaks.",
         timeoutMs: settings.timeoutMs,
         retryCount: settings.retryCount,
       });
