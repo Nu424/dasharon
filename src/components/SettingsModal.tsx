@@ -1,5 +1,9 @@
-import { memoStylePresets } from "../constants/memoStylePresets";
+import { DEFAULT_SETTINGS } from "../store/useAppStore";
 import type { Settings } from "../store/useAppStore";
+import {
+  findUnknownPlaceholders,
+  PROMPT_PLACEHOLDERS,
+} from "../services/openRouter/promptTemplate";
 
 type SettingsModalProps = {
   open: boolean;
@@ -33,11 +37,15 @@ export function SettingsModal({
 
   const graceSeconds = (settings.graceMs / 1000).toFixed(1);
   const timeoutSeconds = Math.round(settings.timeoutMs / 1000);
-  const selectedPreset = memoStylePresets.find((preset) => preset.id === settings.memoStylePresetId);
-  const presetInstruction = selectedPreset?.instruction ?? "";
-  const combinedInstruction = [presetInstruction, settings.memoStyleCustomInstruction]
-    .filter(Boolean)
-    .join("\n\n");
+  const unknownPlaceholders = findUnknownPlaceholders(settings.llmSystemPromptTemplate);
+
+  const handleResetPromptTemplate = () => {
+    const confirmed = window.confirm(
+      "Reset the prompt template to the default? This cannot be undone except by editing again.",
+    );
+    if (!confirmed) return;
+    onChangeSettings({ llmSystemPromptTemplate: DEFAULT_SETTINGS.llmSystemPromptTemplate });
+  };
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4 dark:bg-black/70">
@@ -176,59 +184,45 @@ export function SettingsModal({
             </div>
           </section>
 
-          {/* メモスタイル設定 */}
+          {/* LLMプロンプト設定 */}
           <section className="space-y-2">
-            <h3 className="font-semibold">Memo Style</h3>
-            <label className="block">
-              <span className="text-xs text-slate-600 dark:text-slate-400">Preset</span>
-              <select
-                className="w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-                value={settings.memoStylePresetId}
-                onChange={(event) => onChangeSettings({ memoStylePresetId: event.target.value })}
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="font-semibold">LLM Prompt Template</h3>
+              <button
+                className="rounded border border-slate-300 px-3 py-1 text-xs dark:border-slate-700"
+                type="button"
+                onClick={handleResetPromptTemplate}
               >
-                {memoStylePresets.map((preset) => (
-                  <option key={preset.id} value={preset.id}>
-                    {preset.label}
-                  </option>
+                Reset to default
+              </button>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              This template is sent as the system message. It is saved in localStorage.
+            </p>
+            <div className="rounded border border-slate-200 bg-slate-50 p-2 text-xs dark:border-slate-800 dark:bg-slate-950/40">
+              <div className="font-medium text-slate-700 dark:text-slate-300">Available placeholders</div>
+              <ul className="mt-1 space-y-1 text-slate-600 dark:text-slate-400">
+                {PROMPT_PLACEHOLDERS.map((placeholder) => (
+                  <li key={placeholder.key}>
+                    <code>{`{${placeholder.key}}`}</code> — {placeholder.description}
+                  </li>
                 ))}
-              </select>
-            </label>
+              </ul>
+            </div>
             <label className="block">
-              <span className="text-xs text-slate-600 dark:text-slate-400">Custom Instruction</span>
+              <span className="text-xs text-slate-600 dark:text-slate-400">System prompt template</span>
               <textarea
-                className="w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-                rows={3}
-                value={settings.memoStyleCustomInstruction}
-                onChange={(event) =>
-                  onChangeSettings({ memoStyleCustomInstruction: event.target.value })
-                }
+                className="mt-1 w-full rounded border border-slate-300 bg-white px-2 py-1 font-mono text-xs dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                rows={12}
+                value={settings.llmSystemPromptTemplate}
+                onChange={(event) => onChangeSettings({ llmSystemPromptTemplate: event.target.value })}
               />
             </label>
-            <details className="rounded border border-slate-200 bg-slate-50 p-2 text-xs dark:border-slate-800 dark:bg-slate-950/40">
-              <summary className="cursor-pointer text-slate-600 dark:text-slate-400">
-                Show instructions
-              </summary>
-              <div className="mt-2 space-y-2">
-                <div>
-                  <div className="text-slate-600 dark:text-slate-400">Preset instruction</div>
-                  <textarea
-                    className="mt-1 w-full rounded border border-slate-200 bg-white px-2 py-1 text-xs dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
-                    rows={3}
-                    value={presetInstruction || "(none)"}
-                    readOnly
-                  />
-                </div>
-                <div>
-                  <div className="text-slate-600 dark:text-slate-400">Combined instruction</div>
-                  <textarea
-                    className="mt-1 w-full rounded border border-slate-200 bg-white px-2 py-1 text-xs dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
-                    rows={4}
-                    value={combinedInstruction || "(none)"}
-                    readOnly
-                  />
-                </div>
-              </div>
-            </details>
+            {unknownPlaceholders.length > 0 ? (
+              <p className="text-xs text-amber-700 dark:text-amber-300">
+                Unknown placeholders: {unknownPlaceholders.map((key) => `{${key}}`).join(", ")}
+              </p>
+            ) : null}
           </section>
 
           {/* データ設定 */}
