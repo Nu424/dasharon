@@ -1,6 +1,7 @@
 import { AudioManager } from "../../modules/DataManager/AudioManager";
 import { splitBase64 } from "../../modules/DataManager/util";
 import { decodeToPcm, pcmToWavAudioManager } from "../audio/decodeToPcm";
+import { splitAudioOnSilence, type SplitOnSilenceOptions } from "../audio/splitOnSilence";
 import {
   OPENROUTER_AUDIO_TRANSCRIPTIONS_URL,
   openRouterFetchJson,
@@ -13,6 +14,12 @@ type TranscribeAudioParams = {
   model: string;
   timeoutMs: number;
   retryCount: number;
+};
+
+/** チャンク分割付き文字起こしの入力。 */
+export type TranscribeAudioInChunksParams = TranscribeAudioParams & {
+  chunkingEnabled: boolean;
+  splitOptions: SplitOnSilenceOptions;
 };
 
 /** OpenRouter STT APIのレスポンス形。 */
@@ -64,4 +71,42 @@ export async function transcribeAudio({
   });
 
   return response.text?.trim() ?? "";
+}
+
+/**
+ * 必要に応じて音声を無音位置で分割し、各チャンクをSTTへ送信して結果を結合する。
+ */
+export async function transcribeAudioInChunks({
+  audioManager,
+  apiKey,
+  model,
+  timeoutMs,
+  retryCount,
+  chunkingEnabled,
+  splitOptions,
+}: TranscribeAudioInChunksParams): Promise<string> {
+  if (!chunkingEnabled) {
+    return transcribeAudio({ audioManager, apiKey, model, timeoutMs, retryCount });
+  }
+
+  const chunks = await splitAudioOnSilence(audioManager, splitOptions);
+  if (chunks.length <= 1) {
+    return transcribeAudio({ audioManager, apiKey, model, timeoutMs, retryCount });
+  }
+
+  const transcripts: string[] = [];
+  for (const chunk of chunks) {
+    const text = await transcribeAudio({
+      audioManager: chunk,
+      apiKey,
+      model,
+      timeoutMs,
+      retryCount,
+    });
+    if (text) {
+      transcripts.push(text);
+    }
+  }
+
+  return transcripts.join("\n");
 }
