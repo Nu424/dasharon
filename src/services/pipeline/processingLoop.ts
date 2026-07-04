@@ -2,7 +2,6 @@ import { AudioManager } from "../../modules/DataManager/AudioManager";
 import type { InputMode, RuntimeError, Settings } from "../../store/useAppStore";
 import { transcribeAudioInChunks } from "../openRouter/stt";
 import { updateMemo } from "../openRouter/llm";
-import { memoStylePresets } from "../../constants/memoStylePresets";
 
 /** STT対象の音声セグメント。 */
 export type AudioSegment = {
@@ -137,12 +136,6 @@ export class ProcessingPipeline {
     if (!pending) return;
 
     const settings = this.store.getSettings();
-    // プリセット + カスタム指示を結合する。
-    const presetInstruction =
-      memoStylePresets.find((preset) => preset.id === settings.memoStylePresetId)?.instruction ?? "";
-    const styleInstruction = [presetInstruction, settings.memoStyleCustomInstruction]
-      .filter(Boolean)
-      .join("\n");
     if (!settings.openRouterApiKey) {
       this.store.setRuntimeError({ stage: "LLM", message: "OpenRouter API key is missing." });
       this.llmBlocked = true;
@@ -156,10 +149,12 @@ export class ProcessingPipeline {
       const updatedMemo = await updateMemo({
         apiKey: settings.openRouterApiKey,
         model: settings.llmModel,
-        currentMemo: this.store.getMemoMarkdown(),
-        newTranscriptText: pending,
-        styleInstruction,
-        summaryLanguage: settings.summaryLanguage,
+        promptTemplate: settings.llmSystemPromptTemplate,
+        templateVars: {
+          sttText: pending,
+          currentMemo: this.store.getMemoMarkdown(),
+          summaryLanguage: settings.summaryLanguage,
+        },
         timeoutMs: settings.timeoutMs,
         retryCount: settings.retryCount,
       });

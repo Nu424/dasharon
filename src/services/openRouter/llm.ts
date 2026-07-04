@@ -1,13 +1,16 @@
 import { openRouterFetchJson } from "./openRouterFetch";
+import {
+  buildPromptTemplateVars,
+  renderPromptTemplate,
+  type PromptTemplateVars,
+} from "./promptTemplate";
 
 /** メモ更新に必要な入力。 */
 type UpdateMemoParams = {
   apiKey: string;
   model: string;
-  currentMemo: string;
-  newTranscriptText: string;
-  styleInstruction: string;
-  summaryLanguage: string;
+  promptTemplate: string;
+  templateVars: PromptTemplateVars;
   timeoutMs: number;
   retryCount: number;
 };
@@ -22,53 +25,27 @@ type OpenRouterChatResponse = {
   }>;
 };
 
-// メモ更新のためのシステム指示文。
-const systemPrompt =
-  "You are an editor of a discussion memo. Preserve existing structure, update only what is needed, and keep the memo readable.";
-
-/** ユーザープロンプトを組み立てる。 */
-const buildUserPrompt = ({
-  currentMemo,
-  newTranscriptText,
-  styleInstruction,
-  summaryLanguage,
-}: Pick<UpdateMemoParams, "currentMemo" | "newTranscriptText" | "styleInstruction" | "summaryLanguage">) => {
-  return [
-    `Summary language: ${summaryLanguage}`,
-    "Style instruction:",
-    styleInstruction || "(none)",
-    "Current memo:",
-    currentMemo.trim() ? currentMemo : "(empty)",
-    "New transcript:",
-    newTranscriptText.trim(),
-    "Constraints: Return the updated memo only. No code fences. No preface.",
-  ].join("\n\n");
-};
-
 /**
  * 既存のメモと新規文字起こしから更新版メモを生成する。
  */
 export async function updateMemo({
   apiKey,
   model,
-  currentMemo,
-  newTranscriptText,
-  styleInstruction,
-  summaryLanguage,
+  promptTemplate,
+  templateVars,
   timeoutMs,
   retryCount,
 }: UpdateMemoParams): Promise<string> {
+  const systemContent = renderPromptTemplate(
+    promptTemplate,
+    buildPromptTemplateVars(templateVars),
+  );
+
   const response = await openRouterFetchJson<OpenRouterChatResponse>({
     apiKey,
     body: JSON.stringify({
       model,
-      messages: [
-        { role: "system", content: systemPrompt },
-        {
-          role: "user",
-          content: buildUserPrompt({ currentMemo, newTranscriptText, styleInstruction, summaryLanguage }),
-        },
-      ],
+      messages: [{ role: "system", content: systemContent }],
     }),
     timeoutMs,
     retryCount,

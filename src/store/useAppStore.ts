@@ -1,5 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { DEFAULT_LLM_SYSTEM_PROMPT_TEMPLATE } from "../services/openRouter/promptTemplate";
+import { buildTemplateFromLegacySettings } from "../services/openRouter/migratePromptSettings";
 
 /** 入力モード。 */
 export type InputMode = "PTT" | "VAD" | "TOGGLE";
@@ -17,8 +19,7 @@ export type Settings = {
   theme: ThemeMode;
   graceMs: number;
   summaryLanguage: string;
-  memoStylePresetId: string;
-  memoStyleCustomInstruction: string;
+  llmSystemPromptTemplate: string;
   sttChunkingEnabled: boolean;
   sttMaxChunkMs: number;
   sttSilenceThreshold: number;
@@ -101,7 +102,7 @@ export type AppState = {
 const MAX_TRANSCRIPT_ENTRIES = 300;
 
 // 初期設定値。
-const DEFAULT_SETTINGS: Settings = {
+export const DEFAULT_SETTINGS: Settings = {
   openRouterApiKey: "",
   sttModel: "openai/whisper-large-v3-turbo",
   llmModel: "google/gemini-2.5-flash",
@@ -109,8 +110,7 @@ const DEFAULT_SETTINGS: Settings = {
   theme: "system",
   graceMs: 1000,
   summaryLanguage: "ja",
-  memoStylePresetId: "structured_minutes",
-  memoStyleCustomInstruction: "",
+  llmSystemPromptTemplate: DEFAULT_LLM_SYSTEM_PROMPT_TEMPLATE,
   sttChunkingEnabled: true,
   sttMaxChunkMs: 60_000,
   sttSilenceThreshold: 0.01,
@@ -141,6 +141,17 @@ const DEFAULT_RUNTIME: RuntimeState = {
     transcriptLogOpen: false,
     error: undefined,
   },
+};
+
+const PERSIST_VERSION = 2;
+
+type PersistedState = {
+  settings?: Partial<Settings> & {
+    memoStylePresetId?: string;
+    memoStyleCustomInstruction?: string;
+  };
+  memo?: MemoState;
+  transcripts?: TranscriptState;
 };
 
 /** Zustandの永続ストア定義。 */
@@ -219,6 +230,26 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: "dasharon-store",
+      version: PERSIST_VERSION,
+      migrate: (persistedState, version) => {
+        const state = persistedState as PersistedState;
+        const legacySettings = state.settings ?? {};
+        const migratedSettings: Settings = {
+          ...DEFAULT_SETTINGS,
+          ...legacySettings,
+        };
+
+        if (version < 2) {
+          if (!legacySettings.llmSystemPromptTemplate) {
+            migratedSettings.llmSystemPromptTemplate = buildTemplateFromLegacySettings(legacySettings);
+          }
+        }
+
+        return {
+          ...state,
+          settings: migratedSettings,
+        };
+      },
       // 永続化する対象のみを保存する。
       partialize: (state) => ({
         settings: state.settings,
