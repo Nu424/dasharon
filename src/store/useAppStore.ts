@@ -19,6 +19,12 @@ export type Settings = {
   summaryLanguage: string;
   memoStylePresetId: string;
   memoStyleCustomInstruction: string;
+  sttChunkingEnabled: boolean;
+  sttMaxChunkMs: number;
+  sttSilenceThreshold: number;
+  sttMinSilenceMs: number;
+  sttMinChunkMs: number;
+  sttPaddingMs: number;
   timeoutMs: number;
   retryCount: number;
 };
@@ -105,6 +111,12 @@ const DEFAULT_SETTINGS: Settings = {
   summaryLanguage: "ja",
   memoStylePresetId: "structured_minutes",
   memoStyleCustomInstruction: "",
+  sttChunkingEnabled: true,
+  sttMaxChunkMs: 60_000,
+  sttSilenceThreshold: 0.01,
+  sttMinSilenceMs: 700,
+  sttMinChunkMs: 1_000,
+  sttPaddingMs: 150,
   timeoutMs: 120_000,
   retryCount: 2,
 };

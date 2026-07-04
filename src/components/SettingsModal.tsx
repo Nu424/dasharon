@@ -125,6 +125,16 @@ export function SettingsModal({
                   />
                 </label>
               ) : null}
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={settings.sttChunkingEnabled}
+                  onChange={(event) => onChangeSettings({ sttChunkingEnabled: event.target.checked })}
+                />
+                <span className="text-xs text-slate-600 dark:text-slate-400">
+                  Split long audio on silence before STT
+                </span>
+              </label>
             </div>
           </section>
 
@@ -283,6 +293,85 @@ export function SettingsModal({
                     onChange={(event) =>
                       onChangeSettings({
                         retryCount: Math.max(0, Math.floor(parseNumber(event.target.value))),
+                      })
+                    }
+                  />
+                </label>
+              </div>
+              <div className="space-y-2">
+                <h4 className="font-semibold">STT Chunking</h4>
+                <label className="block">
+                  <span className="text-xs text-slate-600 dark:text-slate-400">Max chunk (seconds)</span>
+                  <input
+                    className="w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                    type="number"
+                    min={5}
+                    step={1}
+                    value={Math.round(settings.sttMaxChunkMs / 1000)}
+                    onChange={(event) =>
+                      onChangeSettings({
+                        sttMaxChunkMs: Math.max(5_000, parseNumber(event.target.value) * 1000),
+                      })
+                    }
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-xs text-slate-600 dark:text-slate-400">Min silence (ms)</span>
+                  <input
+                    className="w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                    type="number"
+                    min={100}
+                    step={50}
+                    value={settings.sttMinSilenceMs}
+                    onChange={(event) =>
+                      onChangeSettings({
+                        sttMinSilenceMs: Math.max(100, parseNumber(event.target.value)),
+                      })
+                    }
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-xs text-slate-600 dark:text-slate-400">Silence threshold (0-1)</span>
+                  <input
+                    className="w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                    type="number"
+                    min={0.001}
+                    max={1}
+                    step={0.001}
+                    value={settings.sttSilenceThreshold}
+                    onChange={(event) =>
+                      onChangeSettings({
+                        sttSilenceThreshold: Math.min(1, Math.max(0.001, parseNumber(event.target.value))),
+                      })
+                    }
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-xs text-slate-600 dark:text-slate-400">Min chunk (ms)</span>
+                  <input
+                    className="w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                    type="number"
+                    min={200}
+                    step={100}
+                    value={settings.sttMinChunkMs}
+                    onChange={(event) =>
+                      onChangeSettings({
+                        sttMinChunkMs: Math.max(200, parseNumber(event.target.value)),
+                      })
+                    }
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-xs text-slate-600 dark:text-slate-400">Padding (ms)</span>
+                  <input
+                    className="w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                    type="number"
+                    min={0}
+                    step={50}
+                    value={settings.sttPaddingMs}
+                    onChange={(event) =>
+                      onChangeSettings({
+                        sttPaddingMs: Math.max(0, parseNumber(event.target.value)),
                       })
                     }
                   />

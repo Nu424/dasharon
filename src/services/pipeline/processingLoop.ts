@@ -1,6 +1,6 @@
 import { AudioManager } from "../../modules/DataManager/AudioManager";
 import type { InputMode, RuntimeError, Settings } from "../../store/useAppStore";
-import { transcribeAudio } from "../openRouter/stt";
+import { transcribeAudioInChunks } from "../openRouter/stt";
 import { updateMemo } from "../openRouter/llm";
 import { memoStylePresets } from "../../constants/memoStylePresets";
 
@@ -99,12 +99,20 @@ export class ProcessingPipeline {
 
     try {
       // STTでテキスト化。
-      const transcript = await transcribeAudio({
+      const transcript = await transcribeAudioInChunks({
         audioManager: segment.audioManager,
         apiKey: settings.openRouterApiKey,
         model: settings.sttModel,
         timeoutMs: settings.timeoutMs,
         retryCount: settings.retryCount,
+        chunkingEnabled: settings.sttChunkingEnabled,
+        splitOptions: {
+          silenceThreshold: settings.sttSilenceThreshold,
+          minSilenceMs: settings.sttMinSilenceMs,
+          minChunkMs: settings.sttMinChunkMs,
+          maxChunkMs: settings.sttMaxChunkMs,
+          paddingMs: settings.sttPaddingMs,
+        },
       });
 
       if (!transcript) return;
