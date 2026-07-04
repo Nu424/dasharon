@@ -1,5 +1,6 @@
 import { AudioManager } from "../../modules/DataManager/AudioManager";
 import { splitBase64 } from "../../modules/DataManager/util";
+import { decodeToPcm, pcmToWavAudioManager } from "../audio/decodeToPcm";
 import {
   OPENROUTER_AUDIO_TRANSCRIPTIONS_URL,
   openRouterFetchJson,
@@ -20,28 +21,6 @@ type OpenRouterTranscriptionResponse = {
 };
 
 /**
- * AudioBufferをモノラルPCMに合成する。
- * 複数チャンネルは平均化する。
- */
-const mixToMono = (buffer: AudioBuffer) => {
-  const { numberOfChannels, length } = buffer;
-  if (numberOfChannels === 1) {
-    return buffer.getChannelData(0);
-  }
-  const mono = new Float32Array(length);
-  for (let channel = 0; channel < numberOfChannels; channel += 1) {
-    const data = buffer.getChannelData(channel);
-    for (let i = 0; i < length; i += 1) {
-      mono[i] += data[i];
-    }
-  }
-  for (let i = 0; i < length; i += 1) {
-    mono[i] /= numberOfChannels;
-  }
-  return mono;
-};
-
-/**
  * 入力音声をWAV形式に正規化する。
  * すでにWAVまたはPCMがあればそのまま利用する。
  */
@@ -50,26 +29,10 @@ const toWavAudioManager = async (audioManager: AudioManager): Promise<AudioManag
     return audioManager;
   }
   if (audioManager.pcmData && audioManager.pcmSampleRate) {
-    const wavManager = new AudioManager();
-    await wavManager.fromPCMData(audioManager.pcmData, audioManager.pcmSampleRate);
-    return wavManager;
+    return pcmToWavAudioManager(audioManager.pcmData, audioManager.pcmSampleRate);
   }
-  if (!audioManager.audioBlob) {
-    throw new Error("No audio data to convert.");
-  }
-
-  // Blob音声をデコードしてWAVに再エンコードする。
-  const arrayBuffer = await audioManager.audioBlob.arrayBuffer();
-  const audioContext = new AudioContext();
-  try {
-    const decoded = await audioContext.decodeAudioData(arrayBuffer.slice(0));
-    const mono = mixToMono(decoded);
-    const wavManager = new AudioManager();
-    await wavManager.fromPCMData(mono, decoded.sampleRate);
-    return wavManager;
-  } finally {
-    await audioContext.close();
-  }
+  const { pcm, sampleRate } = await decodeToPcm(audioManager);
+  return pcmToWavAudioManager(pcm, sampleRate);
 };
 
 /**
